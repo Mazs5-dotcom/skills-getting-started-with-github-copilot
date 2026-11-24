@@ -16,7 +16,43 @@ env:
 jobs:
   find_exercise:
     name: Find Exercise Issue
-    uses: skills/exercise-toolkit/.github/workflows/find-exercise-issue.yml@v0.8.1
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+    outputs:
+      issue-url: ${{ steps.find-exercise-issue.outputs.ISSUE_URL }}
+      issue-number: ${{ steps.find-exercise-issue.outputs.ISSUE_NUMBER }}
+
+    steps:
+      # Anyone can open an issue titled "Exercise", but only workflows in this
+      # repository can open one as github-actions[bot], as Step 0 does.
+      - id: find-exercise-issue
+        uses: actions/github-script@v8
+        env:
+          ISSUE_AUTHOR: "github-actions[bot]"
+          ISSUE_TITLE_TEXT: "Exercise"
+        with:
+          script: |
+            const { data } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              creator: process.env.ISSUE_AUTHOR,
+              state: 'all',
+              sort: 'created',
+              direction: 'desc',
+              per_page: 100
+            });
+            const issue = data.find(item =>
+              !item.pull_request &&
+              item.user?.login === process.env.ISSUE_AUTHOR &&
+              item.title.includes(process.env.ISSUE_TITLE_TEXT)
+            );
+            if (!issue) {
+              throw new Error(`No exercise issue opened by ${process.env.ISSUE_AUTHOR} found`);
+            }
+            core.info(`Exercise issue found: #${issue.number} (${issue.html_url})`);
+            core.setOutput('ISSUE_URL', issue.html_url);
+            core.setOutput('ISSUE_NUMBER', issue.number);
 
   check_step_work:
     name: Check step work
