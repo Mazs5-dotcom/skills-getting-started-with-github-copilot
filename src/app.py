@@ -47,9 +47,19 @@ def root():
     return RedirectResponse(url="/static/index.html")
 
 
+def public_activity(details):
+    # Participant emails are personal data and must never leave the server.
+    return {
+        "description": details["description"],
+        "schedule": details["schedule"],
+        "max_participants": details["max_participants"],
+        "participant_count": len(details["participants"]),
+    }
+
+
 @app.get("/activities")
 def get_activities():
-    return activities
+    return {name: public_activity(details) for name, details in activities.items()}
 
 
 @app.post("/activities/{activity_name}/signup")
