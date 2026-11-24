@@ -2,7 +2,66 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitiesList = document.getElementById("activities-list");
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
+  const loginForm = document.getElementById("login-form");
+  const sessionInfo = document.getElementById("session-info");
+  const studentEmailGroup = document.getElementById("student-email-group");
+  const studentEmailInput = document.getElementById("email");
   const messageDiv = document.getElementById("message");
+
+  let session = null;
+
+  function showMessage(text, className) {
+    messageDiv.textContent = text;
+    messageDiv.className = className;
+    messageDiv.classList.remove("hidden");
+
+    // Hide message after 5 seconds
+    setTimeout(() => {
+      messageDiv.classList.add("hidden");
+    }, 5000);
+  }
+
+  function setSession(newSession) {
+    session = newSession;
+    const loggedIn = session !== null;
+    const isStaff = loggedIn && session.role === "staff";
+
+    loginForm.classList.toggle("hidden", loggedIn);
+    signupForm.classList.toggle("hidden", !loggedIn);
+    sessionInfo.classList.toggle("hidden", !loggedIn);
+    studentEmailGroup.classList.toggle("hidden", !isStaff);
+    studentEmailInput.required = isStaff;
+    sessionInfo.textContent = loggedIn
+      ? `Logged in as ${session.email} (${session.role})`
+      : "";
+  }
+
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    try {
+      const response = await fetch("/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: document.getElementById("login-email").value,
+          password: document.getElementById("login-password").value,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        loginForm.reset();
+        setSession(result);
+      } else {
+        showMessage(result.detail || "Login failed", "error");
+      }
+    } catch (error) {
+      showMessage("Failed to log in. Please try again.", "error");
+      console.error("Error logging in:", error);
+    }
+  });
 
   // Function to fetch activities from API
   async function fetchActivities() {
@@ -45,38 +104,36 @@ document.addEventListener("DOMContentLoaded", () => {
   signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const email = document.getElementById("email").value;
+    if (session === null) {
+      showMessage("Please log in first.", "error");
+      return;
+    }
+
     const activity = document.getElementById("activity").value;
+    let url = `/activities/${encodeURIComponent(activity)}/signup`;
+    if (session.role === "staff") {
+      url += `?email=${encodeURIComponent(studentEmailInput.value)}`;
+    }
 
     try {
-      const response = await fetch(
-        `/activities/${encodeURIComponent(activity)}/signup?email=${encodeURIComponent(email)}`,
-        {
-          method: "POST",
-        }
-      );
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.token}` },
+      });
 
       const result = await response.json();
 
       if (response.ok) {
-        messageDiv.textContent = result.message;
-        messageDiv.className = "success";
+        showMessage(result.message, "success");
         signupForm.reset();
       } else {
-        messageDiv.textContent = result.detail || "An error occurred";
-        messageDiv.className = "error";
+        if (response.status === 401) {
+          setSession(null);
+        }
+        showMessage(result.detail || "An error occurred", "error");
       }
-
-      messageDiv.classList.remove("hidden");
-
-      // Hide message after 5 seconds
-      setTimeout(() => {
-        messageDiv.classList.add("hidden");
-      }, 5000);
     } catch (error) {
-      messageDiv.textContent = "Failed to sign up. Please try again.";
-      messageDiv.className = "error";
-      messageDiv.classList.remove("hidden");
+      showMessage("Failed to sign up. Please try again.", "error");
       console.error("Error signing up:", error);
     }
   });

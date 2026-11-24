@@ -30,7 +30,17 @@ A super simple FastAPI application that allows students to view and sign up for 
 | Method | Endpoint                                                          | Description                                                         |
 | ------ | ----------------------------------------------------------------- | ------------------------------------------------------------------- |
 | GET    | `/activities`                                                     | Get all activities with their details and current participant count |
-| POST   | `/activities/{activity_name}/signup?email=student@mergington.edu` | Sign up for an activity                                             |
+| POST   | `/sessions`                                                       | Log in with `{"email", "password"}` and receive a bearer token      |
+| POST   | `/activities/{activity_name}/signup?email=student@mergington.edu` | Sign up for an activity (requires `Authorization: Bearer <token>`)  |
+
+Signing up requires a session from `POST /sessions`. Students always sign
+themselves up; an `email` that names anyone else is rejected with 403. Staff
+sign up the student named by `email`.
+
+The built-in accounts are demo accounts for the in-memory database. Set
+`MERGINGTON_ACCOUNTS_FILE` to a JSON list of accounts (`email`, `role` of
+`student` or `staff`, hex `salt`, and hex PBKDF2-SHA256 `password_hash` with
+600,000 iterations) to replace them.
 
 ## Data Model
 

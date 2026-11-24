@@ -132,6 +132,10 @@ button:hover {
   border: 1px solid #bee5eb;
 }
 
+#session-info {
+  margin-bottom: 15px;
+}
+
 .hidden {
   display: none;
 }
